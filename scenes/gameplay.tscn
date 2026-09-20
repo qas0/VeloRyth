@@ -1,0 +1,506 @@
+[gd_scene format=3 uid="uid://3pv2o3qbcy4p"]
+
+[ext_resource type="Script" uid="uid://c3venkjrxxsnp" path="res://scripts/gameplay.gd" id="1_gameplay"]
+[ext_resource type="Theme" uid="uid://c0g66krred00x" path="res://themes/main_menu_theme.tres" id="2_theme"]
+[ext_resource type="AudioStream" uid="uid://oyc1jfgdh0c2" path="res://assets/audio/menu_button_hover.wav" id="3_hover"]
+[ext_resource type="AudioStream" uid="uid://cycr6kvrfj8ju" path="res://assets/audio/menu_button_click.wav" id="4_click"]
+
+[sub_resource type="Shader" id="Shader_background"]
+code = "shader_type canvas_item;
+
+uniform vec2 cursor_position = vec2(0.5, 0.5);
+
+float hash(vec2 coordinates) {
+	return fract(sin(dot(coordinates, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+void fragment() {
+	vec2 uv = UV;
+	vec2 centred_uv = uv - vec2(0.5);
+	float aspect = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
+	centred_uv.x *= aspect;
+	float animation_time = TIME;
+
+	vec3 colour = mix(vec3(0.008, 0.019, 0.040), vec3(0.018, 0.043, 0.078), uv.y);
+	float cyan_glow = exp(-6.0 * length(centred_uv - vec2(0.24, -0.12)));
+	float violet_glow = exp(-8.0 * length(centred_uv - vec2(0.12, 0.43)));
+	colour += vec3(0.02, 0.34, 0.46) * cyan_glow * 0.5;
+	colour += vec3(0.19, 0.06, 0.38) * violet_glow * 0.42;
+
+	vec2 grid_uv = uv * vec2(30.0, 17.0);
+	grid_uv.x += sin(uv.y * 3.0 + animation_time * 0.05) * 0.16;
+	vec2 grid_distance = abs(fract(grid_uv) - 0.5) / fwidth(grid_uv);
+	float grid_line = 1.0 - min(min(grid_distance.x, grid_distance.y), 1.0);
+	colour += vec3(0.12, 0.58, 0.72) * grid_line * 0.026;
+
+	float wave = sin((centred_uv.x * 3.1 + centred_uv.y * 1.2) * 8.0 - animation_time * 0.26);
+	float ribbon = exp(-85.0 * abs(centred_uv.y + 0.24 + wave * 0.012));
+	colour += vec3(0.18, 0.68, 0.82) * ribbon * 0.07;
+
+	vec2 star_cell = floor(uv * vec2(160.0, 90.0));
+	float star = step(0.988, hash(star_cell));
+	float twinkle = 0.45 + 0.55 * sin(animation_time * 0.8 + hash(star_cell + 4.0) * 6.2831);
+	colour += vec3(0.40, 0.79, 0.94) * star * twinkle * 0.14;
+
+	vec2 cursor_delta = uv - cursor_position;
+	cursor_delta.x *= aspect;
+	colour += vec3(0.05, 0.45, 0.62) * exp(-25.0 * length(cursor_delta)) * 0.12;
+	float vignette = 1.0 - smoothstep(0.35, 0.88, length(centred_uv * vec2(0.78, 1.0)));
+	colour *= 0.62 + 0.38 * vignette;
+	COLOR = vec4(colour, 1.0);
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_background"]
+shader = SubResource("Shader_background")
+shader_parameter/cursor_position = Vector2(0.5, 0.5)
+
+[sub_resource type="StyleBoxFlat" id="Style_hud_panel"]
+content_margin_left = 22.0
+content_margin_top = 14.0
+content_margin_right = 22.0
+content_margin_bottom = 14.0
+bg_color = Color(0.02, 0.05, 0.085, 0.82)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.78, 0.92, 0.22)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="Style_progress_background"]
+bg_color = Color(0.04, 0.11, 0.16, 0.9)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="Style_progress_fill"]
+bg_color = Color(0.25, 0.84, 0.96, 0.95)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="Style_overlay_panel"]
+content_margin_left = 44.0
+content_margin_top = 38.0
+content_margin_right = 44.0
+content_margin_bottom = 38.0
+bg_color = Color(0.018, 0.047, 0.083, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.32, 0.84, 0.96, 0.42)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.58)
+shadow_size = 24
+
+[sub_resource type="StyleBoxFlat" id="Style_primary_normal"]
+content_margin_left = 24.0
+content_margin_right = 24.0
+bg_color = Color(0.18, 0.7, 0.83, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.58, 0.95, 1, 0.94)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="Gameplay" type="Control" unique_id=996732381]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_gameplay")
+
+[node name="Background" type="ColorRect" parent="." unique_id=401187774]
+unique_name_in_owner = true
+show_behind_parent = true
+material = SubResource("ShaderMaterial_background")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SongAudio" type="AudioStreamPlayer" parent="." unique_id=1548115286]
+unique_name_in_owner = true
+
+[node name="MenuButtonHoverSound" type="AudioStreamPlayer" parent="." unique_id=1660098628]
+unique_name_in_owner = true
+stream = ExtResource("3_hover")
+
+[node name="MenuButtonClickSound" type="AudioStreamPlayer" parent="." unique_id=1256479512]
+unique_name_in_owner = true
+stream = ExtResource("4_click")
+
+[node name="HudMargin" type="MarginContainer" parent="." unique_id=1278302698]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 46.0
+offset_top = 34.0
+offset_right = -46.0
+offset_bottom = 130.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="HudPanel" type="PanelContainer" parent="HudMargin" unique_id=1293631498]
+layout_mode = 2
+theme_override_styles/panel = SubResource("Style_hud_panel")
+
+[node name="HudRow" type="HBoxContainer" parent="HudMargin/HudPanel" unique_id=510785023]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="SongInformation" type="VBoxContainer" parent="HudMargin/HudPanel/HudRow" unique_id=1946626330]
+custom_minimum_size = Vector2(430, 0)
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="SongTitleLabel" type="Label" parent="HudMargin/HudPanel/HudRow/SongInformation" unique_id=282433678]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 25
+text_overrun_behavior = 3
+
+[node name="ArtistLabel" type="Label" parent="HudMargin/HudPanel/HudRow/SongInformation" unique_id=124182675]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.34, 0.82, 0.94, 0.8)
+theme_override_font_sizes/font_size = 16
+
+[node name="DifficultyLabel" type="Label" parent="HudMargin/HudPanel/HudRow/SongInformation"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.43, 0.86, 0.9)
+theme_override_font_sizes/font_size = 14
+
+[node name="Statistics" type="GridContainer" parent="HudMargin/HudPanel/HudRow" unique_id=1070715420]
+custom_minimum_size = Vector2(500, 0)
+layout_mode = 2
+theme_override_constants/h_separation = 26
+theme_override_constants/v_separation = 3
+columns = 2
+
+[node name="ScoreLabel" type="Label" parent="HudMargin/HudPanel/HudRow/Statistics" unique_id=206789423]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "SCORE  0000000"
+
+[node name="AccuracyLabel" type="Label" parent="HudMargin/HudPanel/HudRow/Statistics" unique_id=1450043657]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "ACCURACY  100.0%"
+horizontal_alignment = 2
+
+[node name="ComboLabel" type="Label" parent="HudMargin/HudPanel/HudRow/Statistics" unique_id=538701037]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "COMBO  0"
+
+[node name="MissesLabel" type="Label" parent="HudMargin/HudPanel/HudRow/Statistics" unique_id=1456021457]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "MISSES  0"
+horizontal_alignment = 2
+
+[node name="SongProgress" type="ProgressBar" parent="." unique_id=512378757]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 46.0
+offset_top = -36.0
+offset_right = -46.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/background = SubResource("Style_progress_background")
+theme_override_styles/fill = SubResource("Style_progress_fill")
+show_percentage = false
+
+[node name="InstructionLabel" type="Label" parent="." unique_id=1800555300]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -27.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.42, 0.69, 0.78, 0.84)
+theme_override_font_sizes/font_size = 14
+text = "AIM WITH THE MOUSE  ·  LEFT CLICK TO HIT  ·  ESC TO PAUSE"
+horizontal_alignment = 1
+
+[node name="TimingFeedbackLabel" type="Label" parent="." unique_id=1083632162]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 142.0
+offset_bottom = 186.0
+grow_horizontal = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 28
+text = "GET READY"
+horizontal_alignment = 1
+
+[node name="PauseOverlay" type="Control" parent="." unique_id=2082784123]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Veil" type="ColorRect" parent="PauseOverlay" unique_id=1851702986]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.002, 0.009, 0.018, 0.78)
+
+[node name="Centre" type="CenterContainer" parent="PauseOverlay" unique_id=2107546217]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="PauseOverlay/Centre" unique_id=1408580995]
+custom_minimum_size = Vector2(460, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("Style_overlay_panel")
+
+[node name="Content" type="VBoxContainer" parent="PauseOverlay/Centre/Panel" unique_id=1917005819]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="PauseOverlay/Centre/Panel/Content" unique_id=1065246100]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 42
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="Rule" type="ColorRect" parent="PauseOverlay/Centre/Panel/Content" unique_id=1167519874]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+color = Color(0.3, 0.84, 0.95, 0.35)
+
+[node name="Spacer" type="Control" parent="PauseOverlay/Centre/Panel/Content" unique_id=629460911]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="ResumeButton" type="Button" parent="PauseOverlay/Centre/Panel/Content" unique_id=379072252]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_styles/normal = SubResource("Style_primary_normal")
+text = "RESUME"
+
+[node name="PauseRestartButton" type="Button" parent="PauseOverlay/Centre/Panel/Content" unique_id=43643120]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "RESTART MAP"
+
+[node name="PauseMainMenuButton" type="Button" parent="PauseOverlay/Centre/Panel/Content" unique_id=565788731]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+text = "MAIN MENU"
+
+[node name="ConfirmationOverlay" type="Control" parent="." unique_id=1060179342]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Veil" type="ColorRect" parent="ConfirmationOverlay" unique_id=1563931935]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.002, 0.009, 0.018, 0.84)
+
+[node name="Centre" type="CenterContainer" parent="ConfirmationOverlay" unique_id=1938427162]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="ConfirmationOverlay/Centre" unique_id=1910407679]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("Style_overlay_panel")
+
+[node name="Content" type="VBoxContainer" parent="ConfirmationOverlay/Centre/Panel" unique_id=377266152]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ConfirmationTitleLabel" type="Label" parent="ConfirmationOverlay/Centre/Panel/Content" unique_id=1567779951]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 30
+text = "RESTART MAP?"
+horizontal_alignment = 1
+
+[node name="ConfirmationMessageLabel" type="Label" parent="ConfirmationOverlay/Centre/Panel/Content" unique_id=1417453697]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.76, 0.84, 1)
+text = "Your current progress will be lost."
+horizontal_alignment = 1
+
+[node name="ButtonRow" type="HBoxContainer" parent="ConfirmationOverlay/Centre/Panel/Content" unique_id=1087727550]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ConfirmButton" type="Button" parent="ConfirmationOverlay/Centre/Panel/Content/ButtonRow" unique_id=1959703266]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "RESTART"
+
+[node name="CancelButton" type="Button" parent="ConfirmationOverlay/Centre/Panel/Content/ButtonRow" unique_id=544282521]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("Style_primary_normal")
+text = "CANCEL"
+
+[node name="ResultsOverlay" type="Control" parent="." unique_id=316910879]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Veil" type="ColorRect" parent="ResultsOverlay" unique_id=1175190503]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.002, 0.009, 0.018, 0.82)
+
+[node name="Centre" type="CenterContainer" parent="ResultsOverlay" unique_id=502473113]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="ResultsOverlay/Centre" unique_id=1877753502]
+custom_minimum_size = Vector2(620, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("Style_overlay_panel")
+
+[node name="Content" type="VBoxContainer" parent="ResultsOverlay/Centre/Panel" unique_id=1312685164]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ResultTitleLabel" type="Label" parent="ResultsOverlay/Centre/Panel/Content" unique_id=1642532377]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
+
+[node name="RankLabel" type="Label" parent="ResultsOverlay/Centre/Panel/Content" unique_id=883894351]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.27, 0.87, 0.97, 1)
+theme_override_colors/font_shadow_color = Color(0.12, 0.63, 0.82, 0.42)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 108
+horizontal_alignment = 1
+
+[node name="ResultAccuracyLabel" type="Label" parent="ResultsOverlay/Centre/Panel/Content" unique_id=2140926960]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.87, 0.96, 1)
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 1
+
+[node name="ResultSummaryLabel" type="Label" parent="ResultsOverlay/Centre/Panel/Content" unique_id=1813249545]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.76, 0.84, 1)
+theme_override_font_sizes/font_size = 17
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ResultsOverlay/Centre/Panel/Content" unique_id=1574611018]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="RetryButton" type="Button" parent="ResultsOverlay/Centre/Panel/Content" unique_id=659175275]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+theme_override_styles/normal = SubResource("Style_primary_normal")
+text = "RETRY"
+
+[node name="SongSelectionButton" type="Button" parent="ResultsOverlay/Centre/Panel/Content" unique_id=1217703996]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+text = "SONG SELECTION"
+
+[node name="ResultsMainMenuButton" type="Button" parent="ResultsOverlay/Centre/Panel/Content" unique_id=180507095]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+text = "MAIN MENU"

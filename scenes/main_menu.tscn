@@ -1,0 +1,554 @@
+[gd_scene format=3 uid="uid://pbbrmn3pce35"]
+
+[ext_resource type="Script" uid="uid://p0kfbjpo64dm" path="res://scripts/main_menu.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://cdvlpj75ocsuq" path="res://scripts/grid_visualiser.gd" id="2_grid"]
+[ext_resource type="Theme" uid="uid://c0g66krred00x" path="res://themes/main_menu_theme.tres" id="3_theme"]
+[ext_resource type="Script" uid="uid://jel4hw4r86eu" path="res://scripts/sensitivity_preview.gd" id="4_sensitivity"]
+[ext_resource type="AudioStream" uid="uid://bfmj1c2pdm2d" path="res://assets/audio/main_menu_music.mp3" id="5_music"]
+[ext_resource type="AudioStream" uid="uid://oyc1jfgdh0c2" path="res://assets/audio/menu_button_hover.wav" id="6_hover"]
+[ext_resource type="AudioStream" uid="uid://cycr6kvrfj8ju" path="res://assets/audio/menu_button_click.wav" id="7_click"]
+[ext_resource type="AudioStream" uid="uid://ckilx2jm8jfb7" path="res://assets/audio/play_button_click.wav" id="8_play_click"]
+
+[sub_resource type="Shader" id="Shader_background"]
+code = "shader_type canvas_item;
+
+uniform vec2 cursor_position = vec2(0.5, 0.5);
+
+float hash(vec2 coordinates) {
+	return fract(sin(dot(coordinates, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+void fragment() {
+	vec2 uv = UV;
+	vec2 centred_uv = uv - vec2(0.5);
+	float aspect = SCREEN_PIXEL_SIZE.y / SCREEN_PIXEL_SIZE.x;
+	centred_uv.x *= aspect;
+	float animation_time = TIME;
+
+	vec3 colour = mix(vec3(0.008, 0.019, 0.040), vec3(0.018, 0.043, 0.078), uv.y);
+
+	float cyan_glow = exp(-6.0 * length(centred_uv - vec2(0.24, -0.12)));
+	float violet_glow = exp(-8.0 * length(centred_uv - vec2(0.12, 0.43)));
+	colour += vec3(0.02, 0.34, 0.46) * cyan_glow * 0.5;
+	colour += vec3(0.19, 0.06, 0.38) * violet_glow * 0.42;
+
+	vec2 grid_uv = uv * vec2(30.0, 17.0);
+	grid_uv.x += sin(uv.y * 3.0 + animation_time * 0.05) * 0.16;
+	vec2 grid_distance = abs(fract(grid_uv) - 0.5) / fwidth(grid_uv);
+	float grid_line = 1.0 - min(min(grid_distance.x, grid_distance.y), 1.0);
+	float grid_mask = smoothstep(0.15, 0.95, uv.x) * (1.0 - smoothstep(0.75, 1.0, uv.y));
+	colour += vec3(0.12, 0.58, 0.72) * grid_line * 0.035 * grid_mask;
+
+	float wave = sin((centred_uv.x * 3.1 + centred_uv.y * 1.2) * 8.0 - animation_time * 0.26);
+	float ribbon = exp(-85.0 * abs(centred_uv.y + 0.24 + wave * 0.012));
+	colour += vec3(0.18, 0.68, 0.82) * ribbon * 0.08 * smoothstep(0.2, 1.0, uv.x);
+
+	vec2 star_cell = floor(uv * vec2(160.0, 90.0));
+	float star = step(0.988, hash(star_cell));
+	float twinkle = 0.45 + 0.55 * sin(animation_time * 0.8 + hash(star_cell + 4.0) * 6.2831);
+	colour += vec3(0.40, 0.79, 0.94) * star * twinkle * 0.16;
+
+	vec2 cursor_delta = uv - cursor_position;
+	cursor_delta.x *= aspect;
+	float cursor_light = exp(-25.0 * length(cursor_delta));
+	colour += vec3(0.05, 0.45, 0.62) * cursor_light * 0.14;
+
+	float vignette = 1.0 - smoothstep(0.35, 0.88, length(centred_uv * vec2(0.78, 1.0)));
+	colour *= 0.62 + 0.38 * vignette;
+	float grain = hash(floor(uv / SCREEN_PIXEL_SIZE / 2.0) + floor(animation_time * 12.0));
+	colour += (grain - 0.5) * 0.012;
+
+	COLOR = vec4(colour, 1.0);
+}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_background"]
+shader = SubResource("Shader_background")
+shader_parameter/cursor_position = Vector2(0.5, 0.5)
+
+[sub_resource type="StyleBoxFlat" id="Style_primary_normal"]
+content_margin_left = 22.0
+content_margin_right = 22.0
+bg_color = Color(0.2, 0.76, 0.88, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.58, 0.95, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0.1, 0.75, 0.9, 0.24)
+shadow_size = 12
+
+[sub_resource type="StyleBoxFlat" id="Style_primary_hover"]
+content_margin_left = 26.0
+content_margin_right = 22.0
+bg_color = Color(0.39, 0.88, 0.96, 1)
+border_width_left = 2
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.78, 0.98, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0.18, 0.85, 1, 0.36)
+shadow_size = 16
+
+[sub_resource type="SystemFont" id="SystemFont_about_subheading"]
+font_names = PackedStringArray("Segoe UI", "Inter", "Arial")
+font_weight = 700
+
+[sub_resource type="StyleBoxFlat" id="Style_toast"]
+content_margin_left = 18.0
+content_margin_top = 10.0
+content_margin_right = 18.0
+content_margin_bottom = 10.0
+bg_color = Color(0.025, 0.07, 0.11, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.88, 1, 0.45)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="MainMenu" type="Control" unique_id=1995708114]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("3_theme")
+script = ExtResource("1_main")
+
+[node name="MainMenuMusic" type="AudioStreamPlayer" parent="." unique_id=995157320]
+stream = ExtResource("5_music")
+autoplay = true
+
+[node name="MenuButtonHoverSound" type="AudioStreamPlayer" parent="." unique_id=1361814199]
+unique_name_in_owner = true
+stream = ExtResource("6_hover")
+
+[node name="MenuButtonClickSound" type="AudioStreamPlayer" parent="." unique_id=533243582]
+unique_name_in_owner = true
+stream = ExtResource("7_click")
+
+[node name="PlayButtonClickSound" type="AudioStreamPlayer" parent="." unique_id=1251383059]
+unique_name_in_owner = true
+stream = ExtResource("8_play_click")
+
+[node name="Background" type="ColorRect" parent="." unique_id=840949807]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_background")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="GridVisualiser" type="Control" parent="." unique_id=86829896]
+layout_mode = 1
+anchor_left = 0.43
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_grid")
+
+[node name="SafeArea" type="MarginContainer" parent="." unique_id=1056965756]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 96
+theme_override_constants/margin_top = 70
+theme_override_constants/margin_right = 78
+theme_override_constants/margin_bottom = 56
+
+[node name="Layout" type="HBoxContainer" parent="SafeArea" unique_id=1106288172]
+layout_mode = 2
+
+[node name="MenuContent" type="VBoxContainer" parent="SafeArea/Layout" unique_id=9935158]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(650, 0)
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="TopSpacer" type="Control" parent="SafeArea/Layout/MenuContent" unique_id=20921138]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TitleSpacer" type="Control" parent="SafeArea/Layout/MenuContent" unique_id=1124868062]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="Title" type="HBoxContainer" parent="SafeArea/Layout/MenuContent" unique_id=22408670]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Velo" type="Label" parent="SafeArea/Layout/MenuContent/Title" unique_id=271483664]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.89, 0.97, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.2, 0.8, 1, 0.18)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_font_sizes/font_size = 92
+text = "VELO"
+
+[node name="Ryth" type="Label" parent="SafeArea/Layout/MenuContent/Title" unique_id=843533281]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.34, 0.9, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.25, 0.84, 1, 0.3)
+theme_override_constants/shadow_offset_x = 4
+theme_override_constants/shadow_offset_y = 4
+theme_override_font_sizes/font_size = 92
+text = "RYTH"
+
+[node name="SectionSpacer" type="Control" parent="SafeArea/Layout/MenuContent" unique_id=999657669]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+
+[node name="Buttons" type="VBoxContainer" parent="SafeArea/Layout/MenuContent" unique_id=953864239]
+custom_minimum_size = Vector2(430, 0)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PlayButton" type="Button" parent="SafeArea/Layout/MenuContent/Buttons" unique_id=1779799388]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(430, 76)
+layout_mode = 2
+focus_neighbor_top = NodePath("../QuitButton")
+focus_neighbor_bottom = NodePath("../SettingsButton")
+theme_override_colors/font_color = Color(0.015, 0.08, 0.11, 1)
+theme_override_colors/font_pressed_color = Color(0.015, 0.08, 0.11, 1)
+theme_override_colors/font_hover_color = Color(0.015, 0.08, 0.11, 1)
+theme_override_font_sizes/font_size = 21
+theme_override_styles/normal = SubResource("Style_primary_normal")
+theme_override_styles/pressed = SubResource("Style_primary_hover")
+theme_override_styles/hover = SubResource("Style_primary_hover")
+text = "PLAY"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="SafeArea/Layout/MenuContent/Buttons" unique_id=950888064]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(430, 70)
+layout_mode = 2
+focus_neighbor_top = NodePath("../PlayButton")
+focus_neighbor_bottom = NodePath("../AboutButton")
+text = "SETTINGS"
+alignment = 0
+
+[node name="AboutButton" type="Button" parent="SafeArea/Layout/MenuContent/Buttons" unique_id=878614174]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(430, 70)
+layout_mode = 2
+focus_neighbor_top = NodePath("../SettingsButton")
+focus_neighbor_bottom = NodePath("../QuitButton")
+text = "ABOUT"
+alignment = 0
+
+[node name="QuitButton" type="Button" parent="SafeArea/Layout/MenuContent/Buttons" unique_id=1215022222]
+custom_minimum_size = Vector2(430, 70)
+layout_mode = 2
+focus_neighbor_top = NodePath("../AboutButton")
+focus_neighbor_bottom = NodePath("../PlayButton")
+text = "QUIT"
+alignment = 0
+
+[node name="BottomSpacer" type="Control" parent="SafeArea/Layout/MenuContent" unique_id=397806826]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RightSpacer" type="Control" parent="SafeArea/Layout" unique_id=315726207]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SettingsOverlay" type="Control" parent="." unique_id=269514349]
+unique_name_in_owner = true
+z_index = 10
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="SettingsOverlay" unique_id=2144685089]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.002, 0.008, 0.018, 0.76)
+
+[node name="Centre" type="CenterContainer" parent="SettingsOverlay" unique_id=747438426]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="SettingsOverlay/Centre" unique_id=1969709554]
+custom_minimum_size = Vector2(700, 0)
+layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="SettingsOverlay/Centre/Panel" unique_id=1272820908]
+layout_mode = 2
+theme_override_constants/separation = 22
+
+[node name="Eyebrow" type="Label" parent="SettingsOverlay/Centre/Panel/Content" unique_id=319559127]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.33, 0.84, 0.96, 0.85)
+theme_override_font_sizes/font_size = 12
+text = "SYSTEM"
+
+[node name="Title" type="Label" parent="SettingsOverlay/Centre/Panel/Content" unique_id=1843076958]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.97, 1, 1)
+theme_override_font_sizes/font_size = 40
+text = "SETTINGS"
+
+[node name="Divider" type="HSeparator" parent="SettingsOverlay/Centre/Panel/Content" unique_id=1722280668]
+modulate = Color(0.3, 0.8, 0.95, 0.28)
+layout_mode = 2
+
+[node name="VolumeHeader" type="HBoxContainer" parent="SettingsOverlay/Centre/Panel/Content" unique_id=354262572]
+layout_mode = 2
+
+[node name="VolumeLabel" type="Label" parent="SettingsOverlay/Centre/Panel/Content/VolumeHeader" unique_id=680658451]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 19
+text = "Master volume"
+
+[node name="VolumeInput" type="LineEdit" parent="SettingsOverlay/Centre/Panel/Content/VolumeHeader" unique_id=1390788593]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 46)
+layout_mode = 2
+text = "100%"
+alignment = 1
+
+[node name="VolumeSlider" type="HSlider" parent="SettingsOverlay/Centre/Panel/Content" unique_id=1326755746]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+focus_mode = 0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="SensitivityHeader" type="HBoxContainer" parent="SettingsOverlay/Centre/Panel/Content" unique_id=606285088]
+layout_mode = 2
+
+[node name="SensitivityLabel" type="Label" parent="SettingsOverlay/Centre/Panel/Content/SensitivityHeader" unique_id=2060124286]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 19
+text = "Mouse sensitivity"
+
+[node name="SensitivityInput" type="LineEdit" parent="SettingsOverlay/Centre/Panel/Content/SensitivityHeader" unique_id=578690572]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(106, 46)
+layout_mode = 2
+text = "1.00×"
+alignment = 1
+
+[node name="SensitivitySlider" type="HSlider" parent="SettingsOverlay/Centre/Panel/Content" unique_id=980354795]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+focus_mode = 0
+min_value = 0.25
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="SensitivityPreview" type="Control" parent="SettingsOverlay/Centre/Panel/Content" unique_id=579036282]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+clip_contents = true
+layout_mode = 2
+mouse_default_cursor_shape = 3
+script = ExtResource("4_sensitivity")
+
+[node name="Instruction" type="Label" parent="SettingsOverlay/Centre/Panel/Content/SensitivityPreview" unique_id=1289032303]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 14.0
+offset_top = 9.0
+offset_right = -14.0
+offset_bottom = 31.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.38, 0.72, 0.8, 0.68)
+theme_override_font_sizes/font_size = 11
+text = "MOVE YOUR MOUSE HERE TO TEST SENSITIVITY"
+
+[node name="FullscreenToggle" type="CheckBox" parent="SettingsOverlay/Centre/Panel/Content" unique_id=1812375120]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+focus_mode = 0
+text = "Fullscreen"
+
+[node name="SettingsDoneButton" type="Button" parent="SettingsOverlay/Centre/Panel/Content" unique_id=1904137596]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+focus_mode = 0
+text = "DONE"
+
+[node name="AboutOverlay" type="Control" parent="." unique_id=930486243]
+unique_name_in_owner = true
+z_index = 10
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="AboutOverlay" unique_id=303558466]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.002, 0.008, 0.018, 0.76)
+
+[node name="Centre" type="CenterContainer" parent="AboutOverlay" unique_id=970223977]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="AboutOverlay/Centre" unique_id=202365039]
+custom_minimum_size = Vector2(700, 0)
+layout_mode = 2
+
+[node name="Content" type="VBoxContainer" parent="AboutOverlay/Centre/Panel" unique_id=1809131377]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="HBoxContainer" parent="AboutOverlay/Centre/Panel/Content" unique_id=1427732353]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Velo" type="Label" parent="AboutOverlay/Centre/Panel/Content/Title" unique_id=1167451986]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.89, 0.97, 1, 1)
+theme_override_font_sizes/font_size = 40
+text = "VELO"
+
+[node name="Ryth" type="Label" parent="AboutOverlay/Centre/Panel/Content/Title" unique_id=1081692836]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.34, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 40
+text = "RYTH"
+
+[node name="Divider" type="HSeparator" parent="AboutOverlay/Centre/Panel/Content" unique_id=161565750]
+modulate = Color(0.3, 0.8, 0.95, 0.28)
+layout_mode = 2
+
+[node name="Introduction" type="Label" parent="AboutOverlay/Centre/Panel/Content" unique_id=1660594274]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.76, 0.83, 1)
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 17
+text = "An original aim-based rhythm game based on Rhythia, Sound Space, and Osu!
+
+Built in Godot using GDScript."
+
+[node name="HowToPlayHeading" type="Label" parent="AboutOverlay/Centre/Panel/Content" unique_id=1566697011]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.34, 0.9, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_about_subheading")
+theme_override_font_sizes/font_size = 20
+text = "HOW TO PLAY"
+
+[node name="Instructions" type="Label" parent="AboutOverlay/Centre/Panel/Content" unique_id=472477250]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.76, 0.83, 1)
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 17
+text = "Aim at notes as they appear across the 3×3 playfield. Click when the
+approach square aligns with the note. Precise timing builds your score,
+accuracy, and combo; missed notes break your combo."
+
+[node name="Creator" type="Label" parent="AboutOverlay/Centre/Panel/Content" unique_id=1545732930]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.76, 0.83, 1)
+theme_override_font_sizes/font_size = 17
+text = "Created by Muhammad Qasim Khan"
+
+[node name="AboutBackButton" type="Button" parent="AboutOverlay/Centre/Panel/Content" unique_id=1049579084]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+focus_neighbor_top = NodePath(".")
+focus_neighbor_bottom = NodePath(".")
+text = "BACK"
+
+[node name="Toast" type="Label" parent="." unique_id=443401708]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+z_index = 20
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -205.0
+offset_top = -79.0
+offset_right = 205.0
+offset_bottom = -31.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.78, 0.92, 0.97, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("Style_toast")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[connection signal="mouse_entered" from="SafeArea/Layout/MenuContent/Buttons/PlayButton" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="pressed" from="SafeArea/Layout/MenuContent/Buttons/PlayButton" to="." method="_on_play_pressed"]
+[connection signal="mouse_entered" from="SafeArea/Layout/MenuContent/Buttons/SettingsButton" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="pressed" from="SafeArea/Layout/MenuContent/Buttons/SettingsButton" to="." method="_on_settings_pressed"]
+[connection signal="mouse_entered" from="SafeArea/Layout/MenuContent/Buttons/AboutButton" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="pressed" from="SafeArea/Layout/MenuContent/Buttons/AboutButton" to="." method="_on_about_pressed"]
+[connection signal="mouse_entered" from="SafeArea/Layout/MenuContent/Buttons/QuitButton" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="pressed" from="SafeArea/Layout/MenuContent/Buttons/QuitButton" to="." method="_on_quit_pressed"]
+[connection signal="focus_entered" from="SettingsOverlay/Centre/Panel/Content/VolumeHeader/VolumeInput" to="." method="_on_volume_input_focus_entered"]
+[connection signal="focus_exited" from="SettingsOverlay/Centre/Panel/Content/VolumeHeader/VolumeInput" to="." method="_on_volume_input_focus_exited"]
+[connection signal="text_changed" from="SettingsOverlay/Centre/Panel/Content/VolumeHeader/VolumeInput" to="." method="_on_volume_input_text_changed"]
+[connection signal="text_submitted" from="SettingsOverlay/Centre/Panel/Content/VolumeHeader/VolumeInput" to="." method="_on_volume_input_submitted"]
+[connection signal="value_changed" from="SettingsOverlay/Centre/Panel/Content/VolumeSlider" to="." method="_on_volume_slider_changed"]
+[connection signal="focus_entered" from="SettingsOverlay/Centre/Panel/Content/SensitivityHeader/SensitivityInput" to="." method="_on_sensitivity_input_focus_entered"]
+[connection signal="focus_exited" from="SettingsOverlay/Centre/Panel/Content/SensitivityHeader/SensitivityInput" to="." method="_on_sensitivity_input_focus_exited"]
+[connection signal="text_changed" from="SettingsOverlay/Centre/Panel/Content/SensitivityHeader/SensitivityInput" to="." method="_on_sensitivity_input_text_changed"]
+[connection signal="text_submitted" from="SettingsOverlay/Centre/Panel/Content/SensitivityHeader/SensitivityInput" to="." method="_on_sensitivity_input_submitted"]
+[connection signal="value_changed" from="SettingsOverlay/Centre/Panel/Content/SensitivitySlider" to="." method="_on_sensitivity_slider_changed"]
+[connection signal="mouse_entered" from="SettingsOverlay/Centre/Panel/Content/FullscreenToggle" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="toggled" from="SettingsOverlay/Centre/Panel/Content/FullscreenToggle" to="." method="_on_fullscreen_toggled"]
+[connection signal="mouse_entered" from="SettingsOverlay/Centre/Panel/Content/SettingsDoneButton" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="pressed" from="SettingsOverlay/Centre/Panel/Content/SettingsDoneButton" to="." method="_on_settings_done_pressed"]
+[connection signal="mouse_entered" from="AboutOverlay/Centre/Panel/Content/AboutBackButton" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="pressed" from="AboutOverlay/Centre/Panel/Content/AboutBackButton" to="." method="_on_about_back_pressed"]
