@@ -1,5 +1,6 @@
 extends Control
 
+const GRID_SIZE := BeatmapData.GRID_SIZE
 const CYAN := Color("55e6ff")
 const VIOLET := Color("a777ff")
 const CELL_FILL := Color(0.05, 0.10, 0.18, 0.62)
@@ -20,7 +21,7 @@ func _draw() -> void:
 
 	var board_size := minf(size.x * 0.76, size.y * 0.62)
 	var cell_gap := board_size * 0.035
-	var cell_size := (board_size - cell_gap * 2.0) / 3.0
+	var cell_size := (board_size - cell_gap * (GRID_SIZE - 1)) / GRID_SIZE
 	var board_origin := Vector2(size.x * 0.53 - board_size * 0.5, size.y * 0.49 - board_size * 0.5)
 	var float_offset := sin(_elapsed_time * 0.8) * 7.0
 
@@ -37,11 +38,11 @@ func _draw() -> void:
 		draw_rect(frame_rect, Color(0.22, 0.76, 0.95, 0.016 * float(4 - frame_index)), false, 1.0, true)
 
 	var cell_centres: Array[Vector2] = []
-	for row in range(3):
-		for column in range(3):
+	for row in range(GRID_SIZE):
+		for column in range(GRID_SIZE):
 			var cell_position := local_origin + Vector2(column, row) * (cell_size + cell_gap)
 			var cell_rect := Rect2(cell_position, Vector2.ONE * cell_size)
-			var cell_index := row * 3 + column
+			var cell_index := row * GRID_SIZE + column
 			var cell_glow_alpha := 0.025 + 0.018 * sin(
 				_elapsed_time * 1.4 + float(cell_index) * 0.8
 			)
@@ -71,7 +72,9 @@ func _draw() -> void:
 			VIOLET,
 			float(note_index) / float(NOTE_CELL_SEQUENCE.size() - 1)
 		)
-		_draw_glow_square(note_centre, note_half_size, note_colour, 0.2 + approach_intensity * 0.18)
+		DrawingHelpers.draw_glow_square(
+			self, note_centre, note_half_size, note_colour, 0.2 + approach_intensity * 0.18
+		)
 		var approach_rect := Rect2(
 			note_centre - Vector2.ONE * approach_half_size,
 			Vector2.ONE * approach_half_size * 2.0
@@ -123,23 +126,4 @@ func _draw_glow_circle(
 			centre,
 			radius * glow_scale,
 			Color(glow_colour, glow_strength * 0.045 * float(6 - layer))
-		)
-
-
-func _draw_glow_square(
-		centre: Vector2,
-		half_size: float,
-		glow_colour: Color,
-		glow_strength: float
-) -> void:
-	for layer in range(5, 0, -1):
-		var expansion := float(layer) * half_size * 0.48
-		var glow_rect := Rect2(
-			centre - Vector2.ONE * (half_size + expansion),
-			Vector2.ONE * (half_size + expansion) * 2.0
-		)
-		draw_rect(
-			glow_rect,
-			Color(glow_colour, glow_strength * 0.035 * float(6 - layer)),
-			true
 		)

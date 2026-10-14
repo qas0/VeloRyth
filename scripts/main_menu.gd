@@ -7,12 +7,10 @@ var _toast_tween: Tween
 var _overlay_tween: Tween
 var _intro_tween: Tween
 var _settings_snapshot: Dictionary = {}
-var _is_updating_numeric_input_text := false
 var _scene_transition_in_progress := false
 var _menu_rest_position := Vector2.ZERO
 
-@onready var _background: ColorRect = %Background
-@onready var _background_material: ShaderMaterial = _background.material as ShaderMaterial
+@onready var _background_material: ShaderMaterial = %Background.material as ShaderMaterial
 @onready var _menu_content: VBoxContainer = %MenuContent
 @onready var _play_button: Button = %PlayButton
 @onready var _settings_button: Button = %SettingsButton
@@ -53,14 +51,11 @@ func _process(_delta: float) -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 	var normalised_cursor_position := get_viewport().get_mouse_position() / viewport_size
-	if _background_material:
-		_background_material.set_shader_parameter("cursor_position", normalised_cursor_position)
+	_background_material.set_shader_parameter("cursor_position", normalised_cursor_position)
 
 
 func _input(event: InputEvent) -> void:
-	if _scene_transition_in_progress:
-		return
-	if not event.is_action_pressed("ui_cancel"):
+	if _scene_transition_in_progress or not event.is_action_pressed("ui_cancel"):
 		return
 	if _settings_overlay.visible:
 		get_viewport().set_input_as_handled()
@@ -120,7 +115,6 @@ func _on_play_pressed() -> void:
 	recovery_tween.tween_property(_menu_content, "position", _menu_rest_position, 0.2)
 	recovery_tween.tween_property(_menu_content, "modulate:a", 1.0, 0.2)
 	_play_button.grab_focus()
-	push_error("Cannot open Song Selection: %s" % error_string(result))
 
 
 func _on_settings_pressed() -> void:
@@ -174,23 +168,18 @@ func _on_volume_slider_changed(value: float) -> void:
 
 
 func _on_volume_input_focus_entered() -> void:
-	_set_numeric_input_text(
-		_volume_input,
-		str(roundi(GameSettings.master_volume * VOLUME_PERCENTAGE_SCALE))
-	)
+	_volume_input.text = str(roundi(GameSettings.master_volume * VOLUME_PERCENTAGE_SCALE))
 	_volume_input.caret_column = _volume_input.text.length()
 
 
 func _on_volume_input_text_changed(new_text: String) -> void:
-	if _is_updating_numeric_input_text:
-		return
-	var filtered_text := _filter_whole_number_input(new_text)
+	var filtered_text := _filter_numeric_input(new_text)
 	if filtered_text == new_text:
 		return
-	var filtered_caret_text := _filter_whole_number_input(
+	var filtered_caret_text := _filter_numeric_input(
 		new_text.left(_volume_input.caret_column)
 	)
-	_set_numeric_input_text(_volume_input, filtered_text)
+	_volume_input.text = filtered_text
 	_volume_input.caret_column = filtered_caret_text.length()
 
 
@@ -225,20 +214,18 @@ func _on_sensitivity_slider_changed(value: float) -> void:
 
 
 func _on_sensitivity_input_focus_entered() -> void:
-	_set_numeric_input_text(_sensitivity_input, "%.2f" % GameSettings.mouse_sensitivity)
+	_sensitivity_input.text = "%.2f" % GameSettings.mouse_sensitivity
 	_sensitivity_input.caret_column = _sensitivity_input.text.length()
 
 
 func _on_sensitivity_input_text_changed(new_text: String) -> void:
-	if _is_updating_numeric_input_text:
-		return
-	var filtered_text := _filter_decimal_input(new_text)
+	var filtered_text := _filter_numeric_input(new_text, true)
 	if filtered_text == new_text:
 		return
-	var filtered_caret_text := _filter_decimal_input(
-		new_text.left(_sensitivity_input.caret_column)
+	var filtered_caret_text := _filter_numeric_input(
+		new_text.left(_sensitivity_input.caret_column), true
 	)
-	_set_numeric_input_text(_sensitivity_input, filtered_text)
+	_sensitivity_input.text = filtered_text
 	_sensitivity_input.caret_column = filtered_caret_text.length()
 
 
@@ -313,39 +300,21 @@ func _cancel_settings() -> void:
 
 
 func _update_volume_input(value: float) -> void:
-	_set_numeric_input_text(
-		_volume_input,
-		"%d%%" % roundi(value * VOLUME_PERCENTAGE_SCALE)
-	)
+	_volume_input.text = "%d%%" % roundi(value * VOLUME_PERCENTAGE_SCALE)
 
 
 func _update_sensitivity_input(value: float) -> void:
-	_set_numeric_input_text(_sensitivity_input, "%.2f×" % value)
+	_sensitivity_input.text = "%.2f×" % value
 
 
-func _set_numeric_input_text(input_field: LineEdit, new_text: String) -> void:
-	_is_updating_numeric_input_text = true
-	input_field.text = new_text
-	_is_updating_numeric_input_text = false
-
-
-func _filter_whole_number_input(input_text: String) -> String:
-	var filtered_text := ""
-	for character_index in range(input_text.length()):
-		var character := input_text.substr(character_index, 1)
-		if character.is_valid_int():
-			filtered_text += character
-	return filtered_text
-
-
-func _filter_decimal_input(input_text: String) -> String:
+func _filter_numeric_input(input_text: String, allow_decimal := false) -> String:
 	var filtered_text := ""
 	var decimal_point_found := false
 	for character_index in range(input_text.length()):
 		var character := input_text.substr(character_index, 1)
 		if character.is_valid_int():
 			filtered_text += character
-		elif character == "." and not decimal_point_found:
+		elif allow_decimal and character == "." and not decimal_point_found:
 			filtered_text += character
 			decimal_point_found = true
 	return filtered_text

@@ -46,19 +46,17 @@ func get_ranked_attempts(
 	var song_scores: Dictionary = _scores.get(String(song_id), {})
 	var stored_attempts: Array = song_scores.get(String(difficulty_id), [])
 	var ranked_attempts: Array[Dictionary] = []
-	for attempt in stored_attempts:
-		if attempt is Dictionary:
-			ranked_attempts.append(attempt.duplicate(true))
+	ranked_attempts.assign(stored_attempts.duplicate(true))
 	ranked_attempts.sort_custom(_is_attempt_better)
 	return ranked_attempts
 
 
 func _is_attempt_better(first_attempt: Dictionary, second_attempt: Dictionary) -> bool:
-	var first_grade_index := VALID_GRADES.find(String(first_attempt.get("grade", "F")))
-	var second_grade_index := VALID_GRADES.find(String(second_attempt.get("grade", "F")))
+	var first_grade_index := VALID_GRADES.find(first_attempt["grade"])
+	var second_grade_index := VALID_GRADES.find(second_attempt["grade"])
 	if first_grade_index != second_grade_index:
 		return first_grade_index < second_grade_index
-	return int(first_attempt.get("misses", 0)) < int(second_attempt.get("misses", 0))
+	return first_attempt["misses"] < second_attempt["misses"]
 
 
 func _load_scores() -> void:
@@ -67,20 +65,16 @@ func _load_scores() -> void:
 
 	var save_file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if save_file == null:
-		push_warning("Local scores could not be opened: %s" % error_string(FileAccess.get_open_error()))
 		return
 
 	var parsed_data: Variant = JSON.parse_string(save_file.get_as_text())
 	if not parsed_data is Dictionary:
-		push_warning("Local scores contain invalid JSON and were ignored")
 		return
 	if int(parsed_data.get("format_version", 0)) != FORMAT_VERSION:
-		push_warning("Local scores use an unsupported format version and were ignored")
 		return
 
 	var stored_scores: Variant = parsed_data.get("scores", {})
 	if not stored_scores is Dictionary:
-		push_warning("Local scores contain invalid score data and were ignored")
 		return
 	_scores = _sanitise_scores(stored_scores)
 

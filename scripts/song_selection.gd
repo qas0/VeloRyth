@@ -29,8 +29,7 @@ var _score_row_style: StyleBoxFlat
 
 @export var songs: Array[SongData] = []
 
-@onready var _background: ColorRect = %Background
-@onready var _background_material: ShaderMaterial = _background.material as ShaderMaterial
+@onready var _background_material: ShaderMaterial = %Background.material as ShaderMaterial
 @onready var _safe_area: MarginContainer = $SafeArea
 @onready var _main_menu_button: Button = %MainMenuButton
 @onready var _song_count_label: Label = %SongCountLabel
@@ -62,7 +61,7 @@ func _ready() -> void:
 	_play_button.mouse_entered.connect(
 		_on_interactive_control_mouse_entered.bind(_play_button)
 	)
-	_rebuild_catalogue()
+	_build_catalogue()
 	_apply_pending_selection()
 	_safe_area_rest_position = _safe_area.position
 	call_deferred("_animate_intro")
@@ -75,8 +74,7 @@ func _process(_delta: float) -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 	var normalised_cursor_position := get_viewport().get_mouse_position() / viewport_size
-	if _background_material:
-		_background_material.set_shader_parameter("cursor_position", normalised_cursor_position)
+	_background_material.set_shader_parameter("cursor_position", normalised_cursor_position)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -156,8 +154,7 @@ func _play_initial_song_preview() -> void:
 	_play_song_preview(get_selected_song())
 
 
-func _rebuild_catalogue() -> void:
-	_clear_song_buttons()
+func _build_catalogue() -> void:
 	_song_count_label.text = _format_song_count(songs.size())
 	_song_details.visible = not songs.is_empty()
 
@@ -196,16 +193,6 @@ func _rebuild_catalogue() -> void:
 
 	_configure_song_focus_neighbours()
 	_select_song(_find_initial_song_index())
-
-
-func _clear_song_buttons() -> void:
-	for song_button in _song_buttons:
-		if is_instance_valid(song_button):
-			_song_list.remove_child(song_button)
-			song_button.queue_free()
-	_song_buttons.clear()
-	_song_button_group = ButtonGroup.new()
-	_song_button_group.allow_unpress = false
 
 
 func _configure_song_focus_neighbours() -> void:
@@ -307,9 +294,8 @@ func _rebuild_difficulties(song: SongData, preferred_difficulty_id: StringName) 
 
 func _clear_difficulty_buttons() -> void:
 	for difficulty_button in _difficulty_buttons:
-		if is_instance_valid(difficulty_button):
-			_difficulty_list.remove_child(difficulty_button)
-			difficulty_button.queue_free()
+		_difficulty_list.remove_child(difficulty_button)
+		difficulty_button.queue_free()
 	_difficulty_buttons.clear()
 	_current_difficulties.clear()
 	_difficulty_button_group = ButtonGroup.new()
@@ -356,15 +342,11 @@ func _configure_difficulty_focus_neighbours() -> void:
 		difficulty_button.focus_neighbor_left = difficulty_button.get_path_to(previous_button)
 		difficulty_button.focus_neighbor_right = difficulty_button.get_path_to(next_button)
 		difficulty_button.focus_neighbor_top = difficulty_button.get_path_to(song_button)
-		difficulty_button.focus_neighbor_bottom = difficulty_button.get_path_to(_play_button)
 		difficulty_button.focus_previous = difficulty_button.get_path_to(
 			song_button if difficulty_index == 0 else previous_button
 		)
-		difficulty_button.focus_next = difficulty_button.get_path_to(
-			_play_button
-			if difficulty_index == _difficulty_buttons.size() - 1
-			else next_button
-		)
+		if difficulty_index < _difficulty_buttons.size() - 1:
+			difficulty_button.focus_next = difficulty_button.get_path_to(next_button)
 
 	_song_buttons[_song_buttons.size() - 1].focus_next = (
 		_song_buttons[_song_buttons.size() - 1].get_path_to(
@@ -376,8 +358,6 @@ func _configure_difficulty_focus_neighbours() -> void:
 		_difficulty_buttons[_difficulty_buttons.size() - 1]
 	)
 	_play_button.focus_next = _play_button.get_path_to(_main_menu_button)
-	_main_menu_button.focus_previous = _main_menu_button.get_path_to(_play_button)
-	_update_selected_difficulty_focus_neighbours()
 
 
 func _update_selected_difficulty_focus_neighbours() -> void:
@@ -403,28 +383,13 @@ func _refresh_local_scores() -> void:
 		_try_count_label.text = "0 TRIES"
 		return
 
-	var local_scores := get_node_or_null("/root/LocalScores")
-	if local_scores == null:
-		_try_count_label.text = "0 TRIES"
-		return
-	var attempts_value: Variant = local_scores.call(
-		"get_ranked_attempts",
-		song.song_id,
-		difficulty.difficulty_id,
-	)
-	if not attempts_value is Array:
-		_try_count_label.text = "0 TRIES"
-		return
-
-	var attempts: Array = attempts_value
+	var attempts := LocalScores.get_ranked_attempts(song.song_id, difficulty.difficulty_id)
 	_try_count_label.text = "%d %s" % [
 		attempts.size(),
 		"TRY" if attempts.size() == 1 else "TRIES",
 	]
 	for attempt_index in range(attempts.size()):
-		var attempt: Variant = attempts[attempt_index]
-		if attempt is Dictionary:
-			_score_list.add_child(_create_score_row(attempt_index + 1, attempt))
+		_score_list.add_child(_create_score_row(attempt_index + 1, attempts[attempt_index]))
 
 
 func _clear_score_rows() -> void:
@@ -453,7 +418,7 @@ func _create_score_row(placing: int, attempt: Dictionary) -> PanelContainer:
 	placing_label.add_theme_font_size_override("font_size", 14)
 	row_content.add_child(placing_label)
 
-	var misses := int(attempt.get("misses", 0))
+	var misses := int(attempt["misses"])
 	var misses_label := Label.new()
 	misses_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	misses_label.text = "%d %s" % [misses, "MISS" if misses == 1 else "MISSES"]
@@ -461,7 +426,7 @@ func _create_score_row(placing: int, attempt: Dictionary) -> PanelContainer:
 	misses_label.add_theme_font_size_override("font_size", 14)
 	row_content.add_child(misses_label)
 
-	var grade := String(attempt.get("grade", "F"))
+	var grade := String(attempt["grade"])
 	var grade_label := Label.new()
 	grade_label.custom_minimum_size.x = 44.0
 	grade_label.text = grade
@@ -635,10 +600,8 @@ func _open_gameplay(song: SongData, difficulty: SongDifficultyData) -> void:
 	if beatmap == null:
 		return
 	if beatmap.song_id != song.song_id or beatmap.difficulty_id != difficulty.difficulty_id:
-		push_error("Beatmap identity does not match the selected song and difficulty")
 		return
 	if beatmap.get_last_note_time_ms() > song.get_duration_seconds() * 1000.0:
-		push_error("Beatmap contains notes beyond the end of its audio")
 		return
 	var packed_scene := load(GAMEPLAY_SCENE_PATH) as PackedScene
 	var gameplay := packed_scene.instantiate() as Gameplay
@@ -681,7 +644,6 @@ func _return_to_main_menu() -> void:
 		_safe_area.modulate.a = 1.0
 		_synchronise_button_states()
 		_update_difficulty_details()
-		push_error("Cannot open Main Menu: %s" % error_string(result))
 
 
 func _play_song_preview(song: SongData) -> void:
@@ -744,10 +706,7 @@ func _stop_song_preview(fade_duration := 0.0) -> void:
 	if _preview_tween and _preview_tween.is_valid():
 		_preview_tween.kill()
 	_preview_tween = null
-	if not _song_preview_player.playing:
-		_finish_song_preview()
-		return
-	if fade_duration <= 0.0:
+	if not _song_preview_player.playing or fade_duration <= 0.0:
 		_finish_song_preview()
 		return
 	_preview_tween = create_tween()

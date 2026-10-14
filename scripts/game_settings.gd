@@ -53,10 +53,7 @@ func synchronise_fullscreen_state() -> bool:
 func load_settings() -> void:
 	var config := ConfigFile.new()
 	var load_error := config.load(SETTINGS_PATH)
-	if load_error == ERR_FILE_NOT_FOUND:
-		return
 	if load_error != OK:
-		push_warning("Could not load settings: %s" % error_string(load_error))
 		return
 	master_volume = clampf(
 		float(config.get_value("audio", "master_volume", DEFAULT_MASTER_VOLUME)),
@@ -76,10 +73,7 @@ func save_settings() -> Error:
 	config.set_value("audio", "master_volume", master_volume)
 	config.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	config.set_value("display", "fullscreen", fullscreen)
-	var save_error := config.save(SETTINGS_PATH)
-	if save_error != OK:
-		push_error("Could not save settings: %s" % error_string(save_error))
-	return save_error
+	return config.save(SETTINGS_PATH)
 
 
 func _apply_audio() -> void:
