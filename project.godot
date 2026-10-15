@@ -30,6 +30,15 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=1
 
+[input]
+
+hit_note={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"keycode":88)
+, Object(InputEventMouseButton,"button_index":1)
+]
+}
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

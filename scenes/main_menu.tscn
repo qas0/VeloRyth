@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://p0kfbjpo64dm" path="res://scripts/main_menu.gd" id="1_main"]
 [ext_resource type="Script" uid="uid://cdvlpj75ocsuq" path="res://scripts/grid_visualiser.gd" id="2_grid"]
 [ext_resource type="Theme" uid="uid://c0g66krred00x" path="res://themes/main_menu_theme.tres" id="3_theme"]
-[ext_resource type="Script" uid="uid://jel4hw4r86eu" path="res://scripts/sensitivity_preview.gd" id="4_sensitivity"]
 [ext_resource type="AudioStream" uid="uid://bfmj1c2pdm2d" path="res://assets/audio/main_menu_music.mp3" id="5_music"]
 [ext_resource type="AudioStream" uid="uid://oyc1jfgdh0c2" path="res://assets/audio/menu_button_hover.wav" id="6_hover"]
 [ext_resource type="AudioStream" uid="uid://cycr6kvrfj8ju" path="res://assets/audio/menu_button_click.wav" id="7_click"]
@@ -378,26 +377,30 @@ max_value = 3.0
 step = 0.05
 value = 1.0
 
-[node name="SensitivityPreview" type="Control" parent="SettingsOverlay/Centre/Panel/Content" unique_id=579036282]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
-clip_contents = true
+[node name="KeybindSection" type="VBoxContainer" parent="SettingsOverlay/Centre/Panel/Content"]
 layout_mode = 2
-mouse_default_cursor_shape = 3
-script = ExtResource("4_sensitivity")
+theme_override_constants/separation = 10
 
-[node name="Instruction" type="Label" parent="SettingsOverlay/Centre/Panel/Content/SensitivityPreview" unique_id=1289032303]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 14.0
-offset_top = 9.0
-offset_right = -14.0
-offset_bottom = 31.0
-grow_horizontal = 2
-theme_override_colors/font_color = Color(0.38, 0.72, 0.8, 0.68)
-theme_override_font_sizes/font_size = 11
-text = "MOVE YOUR MOUSE HERE TO TEST SENSITIVITY"
+[node name="Title" type="Label" parent="SettingsOverlay/Centre/Panel/Content/KeybindSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 19
+text = "Keybinds"
+
+[node name="HitKeyRow" type="HBoxContainer" parent="SettingsOverlay/Centre/Panel/Content/KeybindSection"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="SettingsOverlay/Centre/Panel/Content/KeybindSection/HitKeyRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 17
+text = "Hit notes"
+
+[node name="HitKeyButton" type="Button" parent="SettingsOverlay/Centre/Panel/Content/KeybindSection/HitKeyRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 46)
+layout_mode = 2
+tooltip_text = "Click, then press a key. Esc cancels."
+text = "X"
 
 [node name="FullscreenToggle" type="CheckBox" parent="SettingsOverlay/Centre/Panel/Content" unique_id=1812375120]
 unique_name_in_owner = true
@@ -488,8 +491,8 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.76, 0.83, 1)
 theme_override_constants/line_spacing = 6
 theme_override_font_sizes/font_size = 17
-text = "Aim at notes as they appear across the 3×3 playfield. Click when the
-approach square aligns with the note. Precise timing builds your score,
+text = "Aim at notes across the 3×3 playfield. Press your hit key or click when
+the approach square aligns with the note. Precise timing builds your score,
 accuracy, and combo; missed notes break your combo."
 
 [node name="Creator" type="Label" parent="AboutOverlay/Centre/Panel/Content" unique_id=1545732930]
@@ -546,6 +549,8 @@ vertical_alignment = 1
 [connection signal="text_changed" from="SettingsOverlay/Centre/Panel/Content/SensitivityHeader/SensitivityInput" to="." method="_on_sensitivity_input_text_changed"]
 [connection signal="text_submitted" from="SettingsOverlay/Centre/Panel/Content/SensitivityHeader/SensitivityInput" to="." method="_on_sensitivity_input_submitted"]
 [connection signal="value_changed" from="SettingsOverlay/Centre/Panel/Content/SensitivitySlider" to="." method="_on_sensitivity_slider_changed"]
+[connection signal="mouse_entered" from="SettingsOverlay/Centre/Panel/Content/KeybindSection/HitKeyRow/HitKeyButton" to="." method="_on_menu_control_mouse_entered"]
+[connection signal="pressed" from="SettingsOverlay/Centre/Panel/Content/KeybindSection/HitKeyRow/HitKeyButton" to="." method="_on_hit_key_button_pressed"]
 [connection signal="mouse_entered" from="SettingsOverlay/Centre/Panel/Content/FullscreenToggle" to="." method="_on_menu_control_mouse_entered"]
 [connection signal="toggled" from="SettingsOverlay/Centre/Panel/Content/FullscreenToggle" to="." method="_on_fullscreen_toggled"]
 [connection signal="mouse_entered" from="SettingsOverlay/Centre/Panel/Content/SettingsDoneButton" to="." method="_on_menu_control_mouse_entered"]

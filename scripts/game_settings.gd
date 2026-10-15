@@ -8,10 +8,12 @@ const DEFAULT_MASTER_VOLUME := 1.0
 const MIN_MOUSE_SENSITIVITY := 0.25
 const MAX_MOUSE_SENSITIVITY := 3.0
 const DEFAULT_MOUSE_SENSITIVITY := 1.0
+const DEFAULT_HIT_KEY := KEY_X
 const DEFAULT_FULLSCREEN := false
 
 var master_volume := DEFAULT_MASTER_VOLUME
 var mouse_sensitivity := DEFAULT_MOUSE_SENSITIVITY
+var hit_key: Key = DEFAULT_HIT_KEY
 var fullscreen := DEFAULT_FULLSCREEN
 
 
@@ -30,6 +32,16 @@ func set_master_volume(value: float) -> void:
 
 func set_mouse_sensitivity(value: float) -> void:
 	mouse_sensitivity = clampf(value, MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY)
+
+
+func set_hit_key(value: Key) -> void:
+	hit_key = DEFAULT_HIT_KEY if value == KEY_NONE or value == KEY_ESCAPE else value
+	for event in InputMap.action_get_events("hit_note"):
+		if event is InputEventKey:
+			InputMap.action_erase_event("hit_note", event)
+	var key_event := InputEventKey.new()
+	key_event.keycode = hit_key
+	InputMap.action_add_event("hit_note", key_event)
 
 
 func set_fullscreen(enabled: bool) -> void:
@@ -65,6 +77,7 @@ func load_settings() -> void:
 		MIN_MOUSE_SENSITIVITY,
 		MAX_MOUSE_SENSITIVITY
 	)
+	set_hit_key(int(config.get_value("controls", "hit_key", DEFAULT_HIT_KEY)) as Key)
 	fullscreen = bool(config.get_value("display", "fullscreen", DEFAULT_FULLSCREEN))
 
 
@@ -72,6 +85,7 @@ func save_settings() -> Error:
 	var config := ConfigFile.new()
 	config.set_value("audio", "master_volume", master_volume)
 	config.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
+	config.set_value("controls", "hit_key", hit_key)
 	config.set_value("display", "fullscreen", fullscreen)
 	return config.save(SETTINGS_PATH)
 

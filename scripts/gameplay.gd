@@ -121,6 +121,10 @@ func _ready() -> void:
 	_results_overlay.hide()
 	_timing_feedback_label.modulate.a = 0.0
 	_song_audio_player.finished.connect(_on_song_audio_finished)
+	%InstructionLabel.text = (
+		"AIM WITH THE MOUSE  ·  %s / LEFT CLICK TO HIT  ·  ESC TO PAUSE"
+		% OS.get_keycode_string(GameSettings.hit_key).to_upper()
+	)
 	if _song == null or _difficulty == null or _beatmap == null:
 		return
 	_song_title_label.text = _song.title.strip_edges()
@@ -177,11 +181,7 @@ func _input(event: InputEvent) -> void:
 		)
 		_record_cursor_trail(previous_cursor_position, _cursor_position)
 		queue_redraw()
-	elif (
-		event is InputEventMouseButton
-		and event.button_index == MOUSE_BUTTON_LEFT
-		and event.pressed
-	):
+	elif event.is_action_pressed("hit_note"):
 		_attempt_hit()
 		get_viewport().set_input_as_handled()
 

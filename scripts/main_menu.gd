@@ -8,6 +8,7 @@ var _overlay_tween: Tween
 var _intro_tween: Tween
 var _settings_snapshot: Dictionary = {}
 var _scene_transition_in_progress := false
+var _waiting_for_hit_key := false
 var _menu_rest_position := Vector2.ZERO
 
 @onready var _background_material: ShaderMaterial = %Background.material as ShaderMaterial
@@ -21,7 +22,7 @@ var _menu_rest_position := Vector2.ZERO
 @onready var _volume_input: LineEdit = %VolumeInput
 @onready var _sensitivity_slider: HSlider = %SensitivitySlider
 @onready var _sensitivity_input: LineEdit = %SensitivityInput
-@onready var _sensitivity_preview: SensitivityPreview = %SensitivityPreview
+@onready var _hit_key_button: Button = %HitKeyButton
 @onready var _fullscreen_toggle: CheckBox = %FullscreenToggle
 @onready var _about_back_button: Button = %AboutBackButton
 @onready var _toast: Label = %Toast
@@ -40,7 +41,7 @@ func _ready() -> void:
 	_update_sensitivity_input(GameSettings.mouse_sensitivity)
 	var actual_fullscreen := GameSettings.synchronise_fullscreen_state()
 	_fullscreen_toggle.set_pressed_no_signal(actual_fullscreen)
-	_sensitivity_preview.set_sensitivity(_sensitivity_slider.value)
+	_set_waiting_for_hit_key(false)
 	_menu_rest_position = _menu_content.position
 	call_deferred("_animate_intro")
 	_play_button.call_deferred("grab_focus")
@@ -55,7 +56,16 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if _scene_transition_in_progress or not event.is_action_pressed("ui_cancel"):
+	if _scene_transition_in_progress:
+		return
+	if _waiting_for_hit_key and event is InputEventKey:
+		get_viewport().set_input_as_handled()
+		if event.pressed and not event.echo and event.keycode != KEY_NONE:
+			if event.keycode != KEY_ESCAPE:
+				GameSettings.set_hit_key(event.keycode)
+			_set_waiting_for_hit_key(false)
+		return
+	if not event.is_action_pressed("ui_cancel"):
 		return
 	if _settings_overlay.visible:
 		get_viewport().set_input_as_handled()
@@ -144,6 +154,7 @@ func _on_settings_done_pressed() -> void:
 	_menu_click_sound_player.play()
 	_commit_volume_input()
 	_commit_sensitivity_input()
+	_set_waiting_for_hit_key(false)
 	if GameSettings.save_settings() != OK:
 		_show_toast("Settings could not be saved")
 		return
@@ -210,7 +221,6 @@ func _commit_volume_input() -> void:
 func _on_sensitivity_slider_changed(value: float) -> void:
 	GameSettings.set_mouse_sensitivity(value)
 	_update_sensitivity_input(value)
-	_sensitivity_preview.set_sensitivity(value)
 
 
 func _on_sensitivity_input_focus_entered() -> void:
@@ -250,8 +260,18 @@ func _commit_sensitivity_input() -> void:
 	sensitivity = snappedf(sensitivity, _sensitivity_slider.step)
 	_sensitivity_slider.set_value_no_signal(sensitivity)
 	GameSettings.set_mouse_sensitivity(sensitivity)
-	_sensitivity_preview.set_sensitivity(sensitivity)
 	_update_sensitivity_input(sensitivity)
+
+
+func _on_hit_key_button_pressed() -> void:
+	_menu_click_sound_player.play()
+	get_viewport().gui_release_focus()
+	_set_waiting_for_hit_key(true)
+
+
+func _set_waiting_for_hit_key(waiting: bool) -> void:
+	_waiting_for_hit_key = waiting
+	_hit_key_button.text = "PRESS A KEY…" if waiting else OS.get_keycode_string(GameSettings.hit_key)
 
 
 func _on_fullscreen_toggled(enabled: bool) -> void:
@@ -268,6 +288,7 @@ func _capture_settings_snapshot() -> void:
 	_settings_snapshot = {
 		"master_volume": GameSettings.master_volume,
 		"mouse_sensitivity": GameSettings.mouse_sensitivity,
+		"hit_key": GameSettings.hit_key,
 		"fullscreen": GameSettings.is_fullscreen_active(),
 	}
 
@@ -285,13 +306,13 @@ func _cancel_settings() -> void:
 
 	GameSettings.set_master_volume(previous_master_volume)
 	GameSettings.set_mouse_sensitivity(previous_mouse_sensitivity)
+	GameSettings.set_hit_key(int(snapshot["hit_key"]) as Key)
 	GameSettings.set_fullscreen(previous_fullscreen)
 
 	_volume_slider.set_value_no_signal(previous_master_volume)
 	_sensitivity_slider.set_value_no_signal(previous_mouse_sensitivity)
 	_update_volume_input(previous_master_volume)
 	_update_sensitivity_input(previous_mouse_sensitivity)
-	_sensitivity_preview.set_sensitivity(previous_mouse_sensitivity)
 
 	await get_tree().process_frame
 	var actual_fullscreen := GameSettings.synchronise_fullscreen_state()
@@ -340,7 +361,7 @@ func _show_overlay(overlay: Control, initial_focus: Control = null) -> void:
 
 func _hide_overlay(overlay: Control, return_focus: Control) -> void:
 	if overlay == _settings_overlay:
-		_sensitivity_preview.restore_system_cursor()
+		_set_waiting_for_hit_key(false)
 	if _overlay_tween and _overlay_tween.is_valid():
 		_overlay_tween.kill()
 	_overlay_tween = create_tween()
