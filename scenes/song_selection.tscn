@@ -51,12 +51,21 @@ title = "Dash Blitz"
 artist = "G2961"
 audio_stream = ExtResource("9_dash_blitz")
 
+[sub_resource type="Resource" id="SongDifficultyData_softcore_hard"]
+script = ExtResource("20_song_difficulty_data")
+difficulty_id = &"hard"
+display_name = "Hard"
+rating = 3.5
+beatmap_path = "res://beatmaps/softcore/hard.json"
+
 [sub_resource type="Resource" id="SongData_softcore"]
 script = ExtResource("6_song_data")
 song_id = &"softcore"
 title = "Softcore"
 artist = "The Neighbourhood"
 audio_stream = ExtResource("21_softcore")
+bpm = 94.0
+difficulties = Array[ExtResource("20_song_difficulty_data")]([SubResource("SongDifficultyData_softcore_hard")])
 
 [sub_resource type="Resource" id="SongData_you_get_me_so_high"]
 script = ExtResource("6_song_data")
